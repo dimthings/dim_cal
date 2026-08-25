@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Venue Concert Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js">
+    </script>
+    <style>
+        /* ---------- RESET & BASE ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background: #f5f7fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ---------- HEADER ---------- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 2rem;
+            background: white;
+            border-bottom: 1px solid #e9edf2;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .header-actions .user-email {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+        .btn-logout {
+            background: #fee2e2;
+            color: #991b1b;
+            border: none;
+            padding: 0.3rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .btn-logout:hover {
+            background: #fecaca;
+        }
+        .btn-secondary {
+            background: #e9edf2;
+            color: #1e293b;
+            border: none;
+            padding: 0.3rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .btn-secondary:hover {
+            background: #d1d9e6;
+        }
+
+        /* ---------- AUTH ---------- */
+        #authContainer {
+            background: white;
+            border-radius: 1.25rem;
+            padding: 2rem;
+            max-width: 400px;
+            margin: 10vh auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e9edf2;
+        }
+        #authContainer h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+        #authContainer input {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid #d1d9e6;
+            border-radius: 0.6rem;
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+        }
+        #authContainer .btn {
+            width: 100%;
+            margin-top: 0.5rem;
+            padding: 0.7rem;
+            border: none;
+            border-radius: 0.6rem;
+            font-weight: 600;
+            background: #8b5cf6;
+            color: white;
+            cursor: pointer;
+        }
+        #authContainer .btn:hover {
+            background: #7c3aed;
+        }
+        .auth-error {
+            color: #b91c1c;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+        .auth-toggle {
+            color: #8b5cf6;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.9rem;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* ---------- CALENDAR CONTAINER ---------- */
+        #appContainer {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .calendar-wrapper {
+            flex: 1;
+            padding: 1rem 2rem 2rem 2rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ---------- CALENDAR NAV ---------- */
+        .calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+        .calendar-nav .month-year {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .calendar-nav .nav-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .calendar-nav .nav-buttons button {
+            background: #e9edf2;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 0.4rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .calendar-nav .nav-buttons button:hover {
+            background: #d1d9e6;
+        }
+
+        /* ---------- CALENDAR GRID ---------- */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.3rem;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .cal-header {
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #64748b;
+            text-align: center;
+            padding: 0.4rem 0;
+            background: #f1f5f9;
+            border-radius: 0.4rem;
+        }
+
+        .cal-day {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 0.4rem;
+            border: 1px solid #e9edf2;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .cal-day:hover {
+            background: #f8fafc;
+            border-color: #8b5cf6;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+        }
+
+        .cal-day .day-num {
+            font-weight: 500;
+            font-size: 0.85rem;
+            color: #0f172a;
+            flex-shrink: 0;
+        }
+
+        .cal-day .day-events {
+            flex: 1;
+            overflow: hidden;
+            margin-top: 0.1rem;
+        }
+
+        .cal-day .event-dot {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            background: #8b5cf6;
+            border-radius: 50%;
+            margin: 0.05rem 0.1rem;
+            flex-shrink: 0;
+        }
+
+        .cal-day .event-label {
+            font-size: 0.55rem;
+            background: #ede9fe;
+            color: #5b21b6;
+            padding: 0.05rem 0.3rem;
+            border-radius: 0.2rem;
+            margin: 0.05rem 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cal-day .add-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 2rem;
+            height: 2rem;
+            font-size: 1.2rem;
+            font-weight: 300;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+        }
+        .cal-day:hover .add-btn {
+            opacity: 1;
+        }
+        .cal-day .add-btn:hover {
+            background: #7c3aed;
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .cal-day.has-event .add-btn {
+            opacity: 0.7;
+        }
+        .cal-day.has-event:hover .add-btn {
+            opacity: 1;
+        }
+
+        .cal-day.other-month {
+            background: #f8fafc;
+            color: #94a3b8;
+        }
+        .cal-day.other-month .day-num {
+            color: #94a3b8;
+        }
+
+        .cal-day.today {
+            border-color: #8b5cf6;
+            background: #f5f3ff;
+        }
+        .cal-day.today .day-num {
+            color: #7c3aed;
+            font-weight: 700;
+        }
+
+        /* ---------- MODAL ---------- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.hidden {
+            display: none !important;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 1.25rem;
+            padding: 2rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 1.2rem;
+        }
+        .modal-content label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #475569;
+            margin-top: 0.8rem;
+            margin-bottom: 0.2rem;
+        }
+        .modal-content input,
+        .modal-content select {
+            width: 100%;
+            padding: 0.5rem 0.7rem;
+            border: 1px solid #d1d9e6;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .modal-content input:focus,
+        .modal-content select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+        }
+        .modal-content .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 0.8rem;
+        }
+        .modal-content .checkbox-row input[type="checkbox"] {
+            width: 1.1rem;
+            height: 1.1rem;
+            accent-color: #8b5cf6;
+        }
+        .modal-content .checkbox-row label {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #1e293b;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1.2rem;
+        }
+        .modal-actions .btn {
+            padding: 0.5rem 1.2rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .modal-actions .btn-primary {
+            background: #8b5cf6;
+            color: white;
+            flex: 1;
+        }
+        .modal-actions .btn-primary:hover {
+            background: #7c3aed;
+        }
+        .modal-actions .btn-secondary {
+            background: #e9edf2;
+            color: #1e293b;
+        }
+        .modal-actions .btn-secondary:hover {
+            background: #d1d9e6;
+        }
+        .modal-actions .btn-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .modal-actions .btn-danger:hover {
+            background: #fecaca;
+        }
+        .modal-error {
+            color: #b91c1c;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        /* ---------- RESPONSIVE ---------- */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.5rem 1rem;
+            }
+            .header h1 {
+                font-size: 1rem;
+            }
+            .calendar-wrapper {
+                padding: 0.5rem 0.5rem 1rem 0.5rem;
+            }
+            .cal-day {
+                padding: 0.2rem;
+                min-height: 2.5rem;
+            }
+            .cal-day .day-num {
+                font-size: 0.65rem;
+            }
+            .cal-day .event-label {
+                font-size: 0.45rem;
+            }
+            .cal-day .add-btn {
+                width: 1.5rem;
+                height: 1.5rem;
+                font-size: 0.9rem;
+            }
+            .calendar-nav .month-year {
+                font-size: 0.9rem;
+            }
+            .modal-content {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .cal-day .event-label {
+                display: none;
+            }
+            .cal-day .event-dot {
+                width: 0.4rem;
+                height: 0.4rem;
+            }
+            .cal-day .add-btn {
+                width: 1.2rem;
+                height: 1.2rem;
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- AUTH CONTAINER -->
+    <div id="authContainer">
+        <h2 id="authTitle">Sign In</h2>
+        <div id="authError" class="auth-error hidden"></div>
+        <input type="email" id="authEmail" placeholder="Email" />
+        <input type="password" id="authPassword" placeholder="Password" />
+        <button class="btn" id="authSubmitBtn">Sign In</button>
+        <p style="margin-top:0.75rem; text-align:center; font-size:0.85rem; color:#64748b;">
+            <span id="authToggleText">Don't have an account?</span>
+            <span class="auth-toggle" id="authToggleBtn">Sign Up</span>
+        </p>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <div class="header">
+            <h1>📅 Venue Calendar</h1>
+            <div class="header-actions">
+                <span class="user-email" id="userEmailDisplay"></span>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="calendar-wrapper">
+            <div class="calendar-nav">
+                <div class="month-year" id="monthYearLabel">January 2026</div>
+                <div class="nav-buttons">
+                    <button id="prevMonthBtn">◀</button>
+                    <button id="todayBtn">Today</button>
+                    <button id="nextMonthBtn">▶</button>
+                </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Headers and days will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modalOverlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add Concert</h2>
+            <label for="modalArtistName">Artist / Band Name</label>
+            <input type="text" id="modalArtistName" placeholder="e.g. The Jazz Trio" />
+
+            <label for="modalInstrument">Instrument(s) / Role</label>
+            <input type="text" id="modalInstrument" placeholder="e.g. Guitar, Vocals" />
+
+            <label for="modalEventDate">Concert Date</label>
+            <input type="date" id="modalEventDate" />
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="modalConfirmed" />
+                <label for="modalConfirmed">Confirmed</label>
+            </div>
+
+            <div id="modalError" class="modal-error hidden"></div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+                <button class="btn btn-danger hidden" id="modalDeleteBtn">Delete</button>
+                <button class="btn btn-primary" id="modalSaveBtn">Save Concert</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- SUPABASE CONFIG ----------
+        const SUPABASE_URL = 'https://czwyjgbvvnjcxpuliled.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_2wjxsPWkASmc-z3wzAewSQ_hTFX8VpT';
+
+        const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client created:', sbClient);
+
+        // ---------- STATE ----------
+        let concerts = [];
+        let editingId = null;
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let currentUser = null;
+        let isSignUp = false;
+
+        // DOM refs - Auth
+        const authContainer = document.getElementById('authContainer');
+        const appContainer = document.getElementById('appContainer');
+        const authTitle = document.getElementById('authTitle');
+        const authEmail = document.getElementById('authEmail');
+        const authPassword = document.getElementById('authPassword');
+        const authSubmitBtn = document.getElementById('authSubmitBtn');
+        const authToggleBtn = document.getElementById('authToggleBtn');
+        const authToggleText = document.getElementById('authToggleText');
+        const authError = document.getElementById('authError');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // DOM refs - Calendar
+        const calendarGrid = document.getElementById('calendarGrid');
+        const monthYearLabel = document.getElementById('monthYearLabel');
+        const prevMonthBtn = document.getElementById('prevMonthBtn');
+        const nextMonthBtn = document.getElementById('nextMonthBtn');
+        const todayBtn = document.getElementById('todayBtn');
+
+        // DOM refs - Modal
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalArtistName = document.getElementById('modalArtistName');
+        const modalInstrument = document.getElementById('modalInstrument');
+        const modalEventDate = document.getElementById('modalEventDate');
+        const modalConfirmed = document.getElementById('modalConfirmed');
+        const modalSaveBtn = document.getElementById('modalSaveBtn');
+        const modalCancelBtn = document.getElementById('modalCancelBtn');
+        const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+        const modalError = document.getElementById('modalError');
+
+        // ---------- AUTH ----------
+        async function signIn(email, password) {
+            const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            return data;
+        }
+
+        async function signUp(email, password) {
+            const { data, error } = await sbClient.auth.signUp({
+                email,
+                password,
+                options: { data: { email } }
+            });
+            if (error) throw error;
+            return data;
+        }
+
+        async function signOut() {
+            await sbClient.auth.signOut();
+            currentUser = null;
+            authContainer.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+            closeModal();
+        }
+
+        async function handleAuth() {
+            const email = authEmail.value.trim();
+            const password = authPassword.value.trim();
+
+            if (!email || !password) {
+                authError.textContent = 'Please enter both email and password.';
+                authError.classList.remove('hidden');
+                return;
+            }
+
+            authError.classList.add('hidden');
+            authSubmitBtn.disabled = true;
+            authSubmitBtn.textContent = 'Loading...';
+
+            try {
+                if (isSignUp) {
+                    await signUp(email, password);
+                    authError.textContent = 'Account created! Please sign in.';
+                    authError.classList.remove('hidden');
+                    authError.style.color = '#166534';
+                    isSignUp = false;
+                    updateAuthUI();
+                    authSubmitBtn.disabled = false;
+                    authSubmitBtn.textContent = 'Sign In';
+                    return;
+                } else {
+                    const { user } = await signIn(email, password);
+                    currentUser = user;
+                    authContainer.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    userEmailDisplay.textContent = user.email;
+                    await loadConcerts();
+                }
+            } catch (err) {
+                authError.textContent = err.message || 'Authentication failed. Please try again.';
+                authError.classList.remove('hidden');
+                authError.style.color = '#b91c1c';
+            }
+
+            authSubmitBtn.disabled = false;
+            authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+        }
+
+        function updateAuthUI() {
+            if (isSignUp) {
+                authTitle.textContent = 'Create Account';
+                authSubmitBtn.textContent = 'Sign Up';
+                authToggleText.textContent = 'Already have an account?';
+                authToggleBtn.textContent = 'Sign In';
+            } else {
+                authTitle.textContent = 'Sign In';
+                authSubmitBtn.textContent = 'Sign In';
+                authToggleText.textContent = "Don't have an account?";
+                authToggleBtn.textContent = 'Sign Up';
+            }
+            authError.classList.add('hidden');
+        }
+
+        // ---------- CRUD ----------
+        async function loadConcerts() {
+            const { data, error } = await sbClient
+                .from('concerts')
+                .select('*')
+                .order('event_date', { ascending: true });
+
+            if (error) {
+                console.error('Error loading concerts:', error);
+                return;
+            }
+
+            concerts = data || [];
+            renderCalendar();
+        }
+
+        async function saveConcert(name, instrument, date, confirmed) {
+            if (!name || !date) {
+                throw new Error('Please enter an artist name and date.');
+            }
+
+            if (editingId !== null) {
+                const { error } = await sbClient
+                    .from('concerts')
+                    .update({ artist_name: name, instrument, event_date: date, confirmed })
+                    .eq('id', editingId);
+                if (error) throw error;
+                editingId = null;
+            } else {
+                const { error } = await sbClient
+                    .from('concerts')
+                    .insert({ artist_name: name, instrument, event_date: date, confirmed });
+                if (error) throw error;
+            }
+
+            await loadConcerts();
+        }
+
+        async function deleteConcert(id) {
+            const concert = concerts.find(c => c.id === id);
+            if (!confirm(`Delete "${concert.artist_name}"?`)) return;
+
+            const { error } = await sbClient.from('concerts').delete().eq('id', id);
+            if (error) throw error;
+            await loadConcerts();
+            closeModal();
+        }
+
+        // ---------- MODAL ----------
+        function openModal(date = null, concert = null) {
+            modalOverlay.classList.remove('hidden');
+            modalError.classList.add('hidden');
+
+            if (concert) {
+                // Editing existing concert
+                editingId = concert.id;
+                modalTitle.textContent = '✏️ Edit Concert';
+                modalArtistName.value = concert.artist_name;
+                modalInstrument.value = concert.instrument || '';
+                modalEventDate.value = concert.event_date;
+                modalConfirmed.checked = concert.confirmed || false;
+                modalDeleteBtn.classList.remove('hidden');
+            } else {
+                // Adding new concert
+                editingId = null;
+                modalTitle.textContent = '➕ Add Concert';
+                modalArtistName.value = '';
+                modalInstrument.value = '';
+                modalEventDate.value = date || new Date().toISOString().slice(0, 10);
+                modalConfirmed.checked = false;
+                modalDeleteBtn.classList.add('hidden');
+            }
+
+            // Focus the artist name field
+            setTimeout(() => modalArtistName.focus(), 100);
+        }
+
+        function closeModal() {
+            modalOverlay.classList.add('hidden');
+            editingId = null;
+            modalError.classList.add('hidden');
+            modalDeleteBtn.classList.add('hidden');
+        }
+
+        async function handleModalSave() {
+            const name = modalArtistName.value.trim();
+            const instrument = modalInstrument.value.trim();
+            const date = modalEventDate.value;
+            const confirmed = modalConfirmed.checked;
+
+            modalError.classList.add('hidden');
+
+            try {
+                await saveConcert(name, instrument, date, confirmed);
+                closeModal();
+            } catch (err) {
+                modalError.textContent = err.message || 'Failed to save. Please try again.';
+                modalError.classList.remove('hidden');
+            }
+        }
+
+        // ---------- CALENDAR ----------
+        function renderCalendar() {
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const today = new Date();
+            const todayStr = today.toISOString().slice(0, 10);
+
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+                'November', 'December'
+            ];
+            monthYearLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+            let html = '';
+            const dayHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+            dayHeaders.forEach(d => {
+                html += `<div class="cal-header">${d}</div>`;
+            });
+
+            // Previous month days
+            const startOffset = firstDay;
+            for (let i = startOffset - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                html += `<div class="cal-day other-month"><div class="day-num">${day}</div></div>`;
+            }
+
+            // Current month days
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dayEvents = concerts.filter(c => c.event_date === dateStr);
+                const hasEvent = dayEvents.length > 0;
+                const isToday = dateStr === todayStr;
+
+                let classNames = 'cal-day';
+                if (isToday) classNames += ' today';
+                if (hasEvent) classNames += ' has-event';
+
+                html += `
+                    <div class="${classNames}" data-date="${dateStr}">
+                        <div class="day-num">${d}</div>
+                        <div class="day-events">
+                            ${dayEvents.map(e => `<div class="event-label" title="${escapeHtml(e.artist_name)}">${escapeHtml(e.artist_name)}</div>`).join('')}
+                            ${dayEvents.length > 0 ? `<span class="event-dot"></span>` : ''}
+                        </div>
+                        <button class="add-btn" data-date="${dateStr}" title="Add concert">+</button>
+                    </div>
+                `;
+            }
+
+            // Next month days
+            const totalCells = startOffset + daysInMonth;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let d = 1; d <= remainingCells; d++) {
+                html += `<div class="cal-day other-month"><div class="day-num">${d}</div></div>`;
+            }
+
+            calendarGrid.innerHTML = html;
+
+            // Attach event listeners to days
+            document.querySelectorAll('.cal-day:not(.other-month)').forEach(day => {
+                const date = day.dataset.date;
+
+                // Click on the day (not the + button) to edit or view events
+                day.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('add-btn')) return;
+                    const dayEvents = concerts.filter(c => c.event_date === date);
+                    if (dayEvents.length === 1) {
+                        // Open modal to edit the single event
+                        openModal(date, dayEvents[0]);
+                    } else if (dayEvents.length > 1) {
+                        // Show a simple alert with all events (or we could enhance this)
+                        const names = dayEvents.map(e => e.artist_name).join(', ');
+                        alert(`Events on ${date}:\n${names}`);
+                    } else {
+                        // No events, open modal to add
+                        openModal(date);
+                    }
+                });
+            });
+
+            // Attach event listeners to + buttons
+            document.querySelectorAll('.add-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const date = btn.dataset.date;
+                    // Check if there's already an event on this day
+                    const dayEvents = concerts.filter(c => c.event_date === date);
+                    if (dayEvents.length > 0) {
+                        // If there's only one event, edit it
+                        if (dayEvents.length === 1) {
+                            openModal(date, dayEvents[0]);
+                        } else {
+                            // Multiple events, show a simple prompt to add another
+                            openModal(date);
+                        }
+                    } else {
+                        openModal(date);
+                    }
+                });
+            });
+        }
+
+        // ---------- UTILITY ----------
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showModalError(msg) {
+            modalError.textContent = msg;
+            modalError.classList.remove('hidden');
+        }
+
+        function hideModalError() {
+            modalError.classList.add('hidden');
+        }
+
+        // ---------- EVENT LISTENERS ----------
+        authSubmitBtn.addEventListener('click', handleAuth);
+        authToggleBtn.addEventListener('click', () => {
+            isSignUp = !isSignUp;
+            updateAuthUI();
+        });
+        authEmail.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuth(); });
+        authPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuth(); });
+
+        logoutBtn.addEventListener('click', signOut);
+
+        modalCancelBtn.addEventListener('click', closeModal);
+        modalSaveBtn.addEventListener('click', handleModalSave);
+        modalDeleteBtn.addEventListener('click', () => {
+            if (editingId !== null) {
+                deleteConcert(editingId);
+            }
+        });
+
+        // Close modal on overlay click
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        prevMonthBtn.addEventListener('click', () => {
+            if (currentMonth === 0) { currentMonth = 11;
+                currentYear--; } else { currentMonth--; }
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            if (currentMonth === 11) { currentMonth = 0;
+                currentYear++; } else { currentMonth++; }
+            renderCalendar();
+        });
+
+        todayBtn.addEventListener('click', () => {
+            const today = new Date();
+            currentMonth = today.getMonth();
+            currentYear = today.getFullYear();
+            renderCalendar();
+        });
+
+        // ---------- INIT ----------
+        async function checkSession() {
+            const { data: { session } } = await sbClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                userEmailDisplay.textContent = session.user.email;
+                await loadConcerts();
+            } else {
+                authContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                updateAuthUI();
+            }
+        }
+
+        checkSession();
+
+        sbClient.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                currentUser = session.user;
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                userEmailDisplay.textContent = session.user.email;
+                await loadConcerts();
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                authContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                updateAuthUI();
+            }
+        });
+    </script>
+
+</body>
+</html>
